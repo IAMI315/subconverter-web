@@ -1,0 +1,9 @@
+node_modules/
+.env
+npm-debug.log*
+test/
+subconverter/build/
+subconverter/CMakeFiles/
+subconverter/CMakeCache.txt
+subconverter/cmake_install.cmake
+subconverter/subconverter

@@ -1,0 +1,29 @@
+{
+  "name": "subconverter-oneclick",
+  "version": "1.0.0",
+  "description": "One-click web UI and Docker Compose deployment for tindy2013/subconverter.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test": "node test/smoke.js",
+    "compose:up": "docker compose up -d --build",
+    "compose:down": "docker compose down",
+    "compose:logs": "docker compose logs -f"
+  },
+  "keywords": [
+    "subconverter",
+    "clash",
+    "v2ray",
+    "docker-compose"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.19.2",
+    "js-yaml": "^4.1.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

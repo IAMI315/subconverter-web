@@ -1,0 +1,22 @@
+services:
+  web:
+    build:
+      context: .
+    container_name: subconverter-web
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      SUBCONVERTER_URL: http://subconverter:25500
+      REQUEST_TIMEOUT_MS: 30000
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+    depends_on:
+      - subconverter
+
+  subconverter:
+    image: tindy2013/subconverter:latest
+    container_name: subconverter-backend
+    restart: unless-stopped
+    expose:
+      - "25500"

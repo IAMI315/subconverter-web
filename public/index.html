@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>订阅链接转换 - Clash / V2Ray / Sing-box 格式互转</title>
+    <meta
+      name="description"
+      content="在线订阅链接转换工具，支持将 V2Ray 订阅转换为 Clash、Sing-box、Shadowrocket 等客户端格式。"
+    />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <nav class="nav">
+      <div class="nav-inner">
+        <a href="/" class="nav-logo">机场工具箱</a>
+        <div class="nav-links">
+          <a href="#converter">工具</a>
+          <a href="#deploy">部署</a>
+        </div>
+      </div>
+    </nav>
+
+    <main>
+      <section class="hero">
+        <div class="badge" id="statusBadge">● 检测后端状态...</div>
+        <h1>订阅链接转换</h1>
+        <p>一键转换你的订阅链接，适配 Clash、V2Ray、Sing-box 等主流客户端</p>
+      </section>
+
+      <section class="section" id="converter">
+        <div class="format-badges" aria-label="支持格式">
+          <span class="format-badge active">Clash</span>
+          <span class="format-badge">Sing-box</span>
+          <span class="format-badge">V2Ray</span>
+          <span class="format-badge">Shadowrocket</span>
+          <span class="format-badge">Surge</span>
+          <span class="format-badge">Quantumult X</span>
+          <span class="format-badge">Surfboard</span>
+        </div>
+
+        <form class="converter-box" id="convertForm">
+          <div class="form-group">
+            <label for="subUrl">订阅链接</label>
+            <input
+              type="url"
+              id="subUrl"
+              name="url"
+              placeholder="https://example.com/subscribe?token=xxx"
+              autocomplete="off"
+              required
+            />
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="sourceFormat">来源格式</label>
+              <select id="sourceFormat" name="source">
+                <option value="">自动检测</option>
+                <option value="clash">Clash</option>
+                <option value="v2ray">V2Ray</option>
+                <option value="singbox">Sing-box</option>
+                <option value="ss">Shadowsocks</option>
+                <option value="ssr">ShadowsocksR</option>
+                <option value="trojan">Trojan</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="targetFormat">目标格式</label>
+              <select id="targetFormat" name="target">
+                <option value="clash">Clash 配置</option>
+                <option value="singbox">Sing-box 配置</option>
+                <option value="v2ray">V2Ray</option>
+                <option value="rocket">Shadowrocket</option>
+                <option value="surge">Surge</option>
+                <option value="quanx">Quantumult X</option>
+                <option value="surfboard">Surfboard</option>
+                <option value="ss">Shadowsocks</option>
+                <option value="ssr">ShadowsocksR</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="remoteConfig">远程配置（可选）</label>
+              <select id="remoteConfig" name="config">
+                <option value="">默认规则</option>
+                <option
+                  value="https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/config/ACL4SSR_Online_Mini_NoAuto.ini"
+                >
+                  ACL4SSR 精简
+                </option>
+                <option
+                  value="https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/config/ACL4SSR_Online_Full_AdblockPlus.ini"
+                >
+                  ACL4SSR 完整去广告
+                </option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="nodePrefix">节点前缀（可选）</label>
+              <input
+                type="text"
+                id="nodePrefix"
+                name="prefix"
+                placeholder="香港 | 日本 | 自用-"
+                autocomplete="off"
+              />
+            </div>
+          </div>
+
+          <div class="options-grid">
+            <label class="check-option">
+              <input type="checkbox" id="emoji" name="emoji" value="true" checked />
+              <span>启用 Emoji</span>
+            </label>
+            <label class="check-option">
+              <input type="checkbox" id="udp" name="udp" value="true" />
+              <span>启用 UDP</span>
+            </label>
+            <label class="check-option">
+              <input type="checkbox" id="sort" name="sort" value="true" />
+              <span>节点排序</span>
+            </label>
+          </div>
+
+          <button class="submit-btn" id="convertBtn" type="submit" disabled>
+            开始转换
+          </button>
+
+          <div class="result-box" id="resultBox" aria-live="polite">
+            <div class="label">转换成功！订阅地址：</div>
+            <div class="url" id="resultUrl"></div>
+            <div class="result-actions">
+              <button class="copy-btn" id="copyBtn" type="button">复制链接</button>
+              <a class="copy-btn" id="openBtn" href="#" target="_blank" rel="noopener">
+                打开预览
+              </a>
+            </div>
+            <div class="copy-success" id="copySuccess">已复制！</div>
+          </div>
+        </form>
+      </section>
+
+      <section class="section prose" id="deploy">
+        <h2 class="section-title">什么是订阅转换？</h2>
+        <p>
+          不同代理客户端使用不同的配置文件格式。服务商提供的订阅链接通常是通用格式，
+          但你的客户端可能只识别特定格式。
+        </p>
+        <p>
+          例如：服务商给你的是 V2Ray 格式，你想使用 Clash Verge 客户端，就可以在这里转换为
+          Clash YAML 格式。
+        </p>
+        <p>
+          本项目内置 Docker Compose 编排：一个容器运行此网页，另一个容器运行
+          tindy2013/subconverter 后端，适合 Ubuntu 命令行服务器部署。
+        </p>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <div class="links">
+        <a href="/">首页</a>
+        <a href="#converter">订阅转换</a>
+        <a href="#deploy">部署说明</a>
+      </div>
+      <p>所有工具免费使用</p>
+    </footer>
+
+    <script src="/app.js" defer></script>
+  </body>
+</html>
