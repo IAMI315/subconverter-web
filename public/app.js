@@ -6,10 +6,18 @@ const resultUrl = document.getElementById("resultUrl");
 const copySuccess = document.getElementById("copySuccess");
 const copyBtn = document.getElementById("copyBtn");
 const openBtn = document.getElementById("openBtn");
+const targetFormat = document.getElementById("targetFormat");
+const groupFilter = document.getElementById("groupFilter");
+const keepAllGroups = document.getElementById("keepAllGroups");
 
-document.addEventListener("DOMContentLoaded", checkBackend);
+document.addEventListener("DOMContentLoaded", () => {
+  checkBackend();
+  updateGroupFilterVisibility();
+});
 form.addEventListener("submit", handleConvert);
 copyBtn.addEventListener("click", copyResult);
+targetFormat.addEventListener("change", updateGroupFilterVisibility);
+keepAllGroups.addEventListener("change", updateGroupFilterState);
 
 async function checkBackend() {
   try {
@@ -43,13 +51,26 @@ async function handleConvert(event) {
 
   for (const [key, value] of formData.entries()) {
     const trimmed = String(value).trim();
-    if (trimmed && key !== "source") {
+    if (trimmed && key !== "source" && key !== "group") {
       params.set(key, trimmed);
     }
   }
 
   if (!params.has("emoji")) {
     params.set("emoji", "false");
+  }
+
+  if (params.get("target") === "clash") {
+    if (keepAllGroups.checked) {
+      params.set("groupPolicy", "all");
+    } else {
+      const groups = Array.from(form.querySelectorAll('input[name="group"]:checked'))
+        .map((input) => input.value)
+        .filter(Boolean);
+
+      params.set("groupPolicy", "clean");
+      params.set("groups", groups.join(","));
+    }
   }
 
   const convertUrl = `/api/convert?${params.toString()}`;
@@ -90,4 +111,20 @@ async function copyResult() {
 
   await navigator.clipboard.writeText(value);
   copySuccess.style.display = "block";
+}
+
+function updateGroupFilterVisibility() {
+  const isClash = targetFormat.value === "clash";
+  groupFilter.hidden = !isClash;
+  updateGroupFilterState();
+}
+
+function updateGroupFilterState() {
+  const disabled = keepAllGroups.checked || targetFormat.value !== "clash";
+
+  for (const input of groupFilter.querySelectorAll('input[name="group"]')) {
+    if (!input.defaultChecked) {
+      input.disabled = disabled;
+    }
+  }
 }
