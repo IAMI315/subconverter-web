@@ -49,9 +49,8 @@ app.get("/api/convert", async (req, res) => {
       return;
     }
 
-    const prefix = String(req.query.prefix || "").trim();
     const output =
-      prefix && target === "clash" ? prefixClashYaml(body, prefix) : body;
+      target === "clash" ? transformClashYaml(body, getClashTransformOptions(req.query)) : body;
 
     res
       .status(200)
@@ -145,11 +144,16 @@ function inferContentType(target) {
 }
 
 function prefixClashYaml(content, prefix) {
+  return transformClashYaml(content, { prefix });
+}
+
+function transformClashYaml(content, options = {}) {
   const document = yaml.load(content);
   if (!document || !Array.isArray(document.proxies)) {
     return content;
   }
 
+  const prefix = String(options.prefix || "").trim();
   const renameMap = new Map();
 
   document.proxies = document.proxies.map((proxy) => {
@@ -157,9 +161,9 @@ function prefixClashYaml(content, prefix) {
       return proxy;
     }
 
-    const nextName = proxy.name.startsWith(prefix)
-      ? proxy.name
-      : `${prefix}${proxy.name}`;
+    const nextName = prefix && !proxy.name.startsWith(prefix)
+      ? `${prefix}${proxy.name}`
+      : proxy.name;
 
     renameMap.set(proxy.name, nextName);
     return {
@@ -169,16 +173,37 @@ function prefixClashYaml(content, prefix) {
   });
 
   if (Array.isArray(document["proxy-groups"])) {
-    document["proxy-groups"] = document["proxy-groups"].map((group) => {
-      if (!group || !Array.isArray(group.proxies)) {
-        return group;
-      }
+    const allGroupNames = new Set(
+      document["proxy-groups"]
+        .map((group) => group?.name)
+        .filter((name) => typeof name === "string")
+    );
+    const keptGroupNames = getKeptGroupNames(document["proxy-groups"], options);
+    const shouldFilterGroups = keptGroupNames !== null;
 
-      return {
-        ...group,
-        proxies: group.proxies.map((name) => renameMap.get(name) || name)
-      };
-    });
+    document["proxy-groups"] = document["proxy-groups"]
+      .filter((group) => !shouldFilterGroups || keptGroupNames.has(group.name))
+      .map((group) => {
+        if (!group || !Array.isArray(group.proxies)) {
+          return group;
+        }
+
+        return {
+          ...group,
+          proxies: group.proxies
+            .filter((name) =>
+              !shouldFilterGroups ||
+              !isRemovedGroupReference(name, allGroupNames, keptGroupNames)
+            )
+            .map((name) => renameMap.get(name) || name)
+        };
+      });
+
+    if (Array.isArray(document.rules) && shouldFilterGroups) {
+      document.rules = document.rules.filter((rule) =>
+        keepRuleForGroups(rule, allGroupNames, keptGroupNames)
+      );
+    }
   }
 
   return yaml.dump(document, {
@@ -187,9 +212,127 @@ function prefixClashYaml(content, prefix) {
   });
 }
 
+function getClashTransformOptions(query) {
+  return {
+    prefix: String(query.prefix || "").trim(),
+    groupPolicy: String(query.groupPolicy || "clean").trim(),
+    groups: parseGroupList(query.groups)
+  };
+}
+
+function getKeptGroupNames(groups, options) {
+  if (options.groupPolicy === "all") {
+    return null;
+  }
+
+  const requestedGroups = new Set(options.groups || []);
+
+  if (!requestedGroups.size && options.groupPolicy !== "clean") {
+    return null;
+  }
+
+  for (const group of groups) {
+    if (DEFAULT_CLASH_GROUPS.has(normalizeGroupName(group?.name))) {
+      requestedGroups.add(group.name);
+    }
+  }
+
+  return requestedGroups;
+}
+
+function parseGroupList(value) {
+  const values = Array.isArray(value) ? value : [value];
+
+  return values
+    .flatMap((item) => String(item || "").split(","))
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function isRemovedGroupReference(name, allGroupNames, keptGroupNames) {
+  if (!allGroupNames.has(name) || keptGroupNames.has(name)) {
+    return false;
+  }
+
+  if (DIRECT_PROXY_REFERENCES.has(name)) {
+    return false;
+  }
+
+  return true;
+}
+
+function keepRuleForGroups(rule, allGroupNames, keptGroupNames) {
+  if (typeof rule !== "string") {
+    return true;
+  }
+
+  const policy = getRulePolicy(rule);
+
+  if (
+    !policy ||
+    !allGroupNames.has(policy) ||
+    DIRECT_PROXY_REFERENCES.has(policy) ||
+    keptGroupNames.has(policy)
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+function getRulePolicy(rule) {
+  const parts = rule.split(",").map((part) => part.trim()).filter(Boolean);
+
+  while (parts.length) {
+    const candidate = parts.pop();
+
+    if (!RULE_OPTIONS.has(candidate)) {
+      return candidate;
+    }
+  }
+
+  return "";
+}
+
+function normalizeGroupName(name) {
+  return String(name || "")
+    .replace(/^[\p{Extended_Pictographic}\p{Emoji_Presentation}\uFE0F\s]+/u, "")
+    .trim();
+}
+
+const DEFAULT_CLASH_GROUPS = new Set([
+  "Proxy",
+  "Auto",
+  "Fallback",
+  "Final",
+  "DIRECT",
+  "REJECT",
+  "节点选择",
+  "自动选择",
+  "故障转移",
+  "全球代理",
+  "全球直连",
+  "国外网站",
+  "国内网站",
+  "漏网之鱼"
+]);
+
+const DIRECT_PROXY_REFERENCES = new Set([
+  "DIRECT",
+  "REJECT",
+  "REJECT-DROP",
+  "PASS"
+]);
+
+const RULE_OPTIONS = new Set([
+  "no-resolve",
+  "resolve"
+]);
+
 module.exports = {
   app,
   buildSubconverterUrl,
   getSubconverterUrl,
-  prefixClashYaml
+  prefixClashYaml,
+  transformClashYaml
 };
