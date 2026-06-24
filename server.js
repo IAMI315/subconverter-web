@@ -232,7 +232,7 @@ function getKeptGroupNames(groups, options) {
   }
 
   for (const group of groups) {
-    if (DEFAULT_CLASH_GROUPS.has(group?.name)) {
+    if (DEFAULT_CLASH_GROUPS.has(normalizeGroupName(group?.name))) {
       requestedGroups.add(group.name);
     }
   }
@@ -266,7 +266,7 @@ function keepRuleForGroups(rule, allGroupNames, keptGroupNames) {
     return true;
   }
 
-  const policy = rule.split(",").pop()?.trim();
+  const policy = getRulePolicy(rule);
 
   if (
     !policy ||
@@ -278,6 +278,26 @@ function keepRuleForGroups(rule, allGroupNames, keptGroupNames) {
   }
 
   return false;
+}
+
+function getRulePolicy(rule) {
+  const parts = rule.split(",").map((part) => part.trim()).filter(Boolean);
+
+  while (parts.length) {
+    const candidate = parts.pop();
+
+    if (!RULE_OPTIONS.has(candidate)) {
+      return candidate;
+    }
+  }
+
+  return "";
+}
+
+function normalizeGroupName(name) {
+  return String(name || "")
+    .replace(/^[\p{Extended_Pictographic}\p{Emoji_Presentation}\uFE0F\s]+/u, "")
+    .trim();
 }
 
 const DEFAULT_CLASH_GROUPS = new Set([
@@ -302,6 +322,11 @@ const DIRECT_PROXY_REFERENCES = new Set([
   "REJECT",
   "REJECT-DROP",
   "PASS"
+]);
+
+const RULE_OPTIONS = new Set([
+  "no-resolve",
+  "resolve"
 ]);
 
 module.exports = {

@@ -94,6 +94,42 @@ async function main() {
   assert.doesNotMatch(filtered.rules.join("\n"), /microsoft\.com,Microsoft/);
   assert.match(filtered.rules.join("\n"), /example\.com,NodeA/);
 
+  const emojiCoreGroups = yaml.load(
+    transformClashYaml(
+      [
+        "proxies:",
+        "  - name: NodeA",
+        "    type: ss",
+        "proxy-groups:",
+        "  - name: Proxy",
+        "    proxies:",
+        "      - NodeA",
+        "  - name: 🎯 全球直连",
+        "    proxies:",
+        "      - DIRECT",
+        "  - name: 📺 巴哈姆特",
+        "    proxies:",
+        "      - NodeA",
+        "rules:",
+        "  - IP-CIDR,192.168.0.0/16,🎯 全球直连,no-resolve",
+        "  - DOMAIN-SUFFIX,bahamut.com.tw,📺 巴哈姆特",
+        "  - MATCH,Proxy",
+        ""
+      ].join("\n"),
+      {
+        groupPolicy: "clean",
+        groups: ["Proxy"]
+      }
+    )
+  );
+
+  assert.deepStrictEqual(
+    emojiCoreGroups["proxy-groups"].map((group) => group.name),
+    ["Proxy", "🎯 全球直连"]
+  );
+  assert.match(emojiCoreGroups.rules.join("\n"), /192\.168\.0\.0\/16,🎯 全球直连,no-resolve/);
+  assert.doesNotMatch(emojiCoreGroups.rules.join("\n"), /bahamut\.com\.tw,📺 巴哈姆特/);
+
   await listen(upstream, 0);
   process.env.SUBCONVERTER_URL = `http://127.0.0.1:${upstream.address().port}`;
 
